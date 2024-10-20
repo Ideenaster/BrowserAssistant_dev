@@ -74,8 +74,14 @@
                   <el-button @click="testAlarmSound(selectedAlarmId)" type="primary" size="small">测试铃声</el-button>
                 </el-form-item>
                 <el-form-item label="添加闹钟音频">
-                  <el-input v-model="newAlarmPath" placeholder="请输入音频文件路径"></el-input>
-                  <el-button type="primary" @click="addAlarmSound">添加</el-button>
+                  <el-upload
+                    accept="audio/*"
+                    :auto-upload="false"
+                    :on-change="handleFileChange"
+                    :show-file-list="false"
+                  >
+                    <el-button type="primary">选择音频文件</el-button>
+                  </el-upload>
                 </el-form-item>
                 <el-form-item>
                   <el-button @click="resetAudio" :disabled="selectedAlarmId === defaultAlarm.id">重置为默认</el-button>
@@ -101,11 +107,12 @@
   <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
   import { ElMessage } from 'element-plus'
+  import { openDB, DBSchema, IDBPDatabase } from 'idb';
   
   interface AlarmSound {
     id: number;
     name: string;
-    path: string;
+    audioData: Blob;
     time: string;
     triggered: boolean;
   }
@@ -121,7 +128,7 @@
   const defaultAlarm: AlarmSound = {
     id: -1,
     name: '默认闹钟',
-    path: '/path/to/default/alarm.mp3',
+    audioData: new Blob(), // 这里需要替换为实际的默认音频数据
     time: '',
     triggered: false
   }
@@ -130,7 +137,7 @@
   const selectedAlarmId = ref<number>(defaultAlarm.id)
   const currentAlarmSrc = computed(() => {
     const sound = alarmSounds.value.find(sound => sound.id === selectedAlarmId.value)
-    return sound ? sound.path : defaultAlarm.path
+    return sound ? URL.createObjectURL(sound.audioData) : URL.createObjectURL(defaultAlarm.audioData)
   })
   
   const isAlarm = ref(false)
@@ -158,7 +165,7 @@
   
   const triggerAlarm = async () => {
     isAlarm.value = true
-    const audioSrc = await loadAudioBlob(currentAlarmSrc.value)
+    const audioSrc = await loadAudioBlob(selectedAlarmId.value)
     const audio = new Audio(audioSrc)
     audio.play()
   }
@@ -206,7 +213,7 @@
       const newAlarm: AlarmSound = {
         id: Date.now(),
         name: `闹钟 ${alarms.value.length + 1}`,
-        path: currentAlarmSrc.value,
+        audioData: alarmSounds.value.find(sound => sound.id === selectedAlarmId.value)?.audioData || defaultAlarm.audioData,
         time: alarmTime.toISOString(),
         triggered: false
       }
@@ -230,19 +237,26 @@
     isAlarm.value = false
   }
   
-  const handleFileChange = (file: any) => {
+  const handleFileChange = async (file: any) => {
     if(file.raw.type.startsWith('audio/')){
-      const newSound: AlarmSound = {
-        id: Date.now(),
-        name: file.name,
-        path: file.raw.name, // 存储文件名而不是 blob URL
-        time: '',
-        triggered: false
+      try {
+        const arrayBuffer = await file.raw.arrayBuffer();
+        const newSound: AlarmSound = {
+          id: Date.now(),
+          name: file.name,
+          audioData: new Blob([arrayBuffer], {type: file.raw.type}),
+          time: '',
+          triggered: false
+        }
+        await saveAlarmSound(newSound)
+        alarmSounds.value.push(newSound)
+        selectedAlarmId.value = newSound.id
+        localStorage.setItem('selectedAlarmId', JSON.stringify(selectedAlarmId.value))
+        ElMessage.success('音频文件添加成功')
+      } catch (error) {
+        console.error('添加音频文件失败:', error);
+        ElMessage.error('无法添加音频文件，请重试');
       }
-      alarmSounds.value.push(newSound)
-      selectedAlarmId.value = newSound.id
-      saveAlarmSounds()
-      ElMessage.success('音频文件添加成功')
     } else {
       ElMessage.error('请选择音频文件')
     }
@@ -270,26 +284,108 @@
     localStorage.setItem('selectedAlarmId', JSON.stringify(selectedAlarmId.value))
   }
   
-  const loadAlarmSounds = () => {
-    const ss = localStorage.getItem('alarmSounds')
-    if (ss) {
-      const parsedSounds = JSON.parse(ss)
-      if (Array.isArray(parsedSounds) && parsedSounds.length > 0) {
-        alarmSounds.value = parsedSounds
-      } else {
-        alarmSounds.value = [defaultAlarm]
-      }
+  interface MyDB extends DBSchema {
+    alarmSounds: {
+      key: number;
+      value: AlarmSound;
+      indexes: { 'by-name': string };
+    };
+  }
+  
+  let db: IDBPDatabase<MyDB>;
+  
+  const initDB = async () => {
+    db = await openDB<MyDB>('TimerDB', 1, {
+      upgrade(db) {
+        const store = db.createObjectStore('alarmSounds', {
+          keyPath: 'id',
+          autoIncrement: true,
+        });
+        store.createIndex('by-name', 'name');
+      },
+    });
+  };
+  
+  const loadAlarmSounds = async () => {
+    await initDB();
+    const sounds = await db.getAll('alarmSounds');
+    if (sounds.length > 0) {
+      alarmSounds.value = sounds;
     } else {
-      alarmSounds.value = [defaultAlarm]
+      alarmSounds.value = [defaultAlarm];
+      await db.add('alarmSounds', defaultAlarm);
     }
     
-    const sai = localStorage.getItem('selectedAlarmId')
+    const sai = localStorage.getItem('selectedAlarmId');
     if (sai) {
-      selectedAlarmId.value = JSON.parse(sai)
+      selectedAlarmId.value = JSON.parse(sai);
     } else {
-      selectedAlarmId.value = defaultAlarm.id
+      selectedAlarmId.value = defaultAlarm.id;
     }
-  }
+  };
+  
+  const saveAlarmSound = async (sound: AlarmSound) => {
+    await db.put('alarmSounds', sound);
+  };
+  
+  const removeAlarmSound = async (id: number) => {
+    const index = alarmSounds.value.findIndex(sound => sound.id === id);
+    if (index !== -1) {
+      await db.delete('alarmSounds', id);
+      alarmSounds.value.splice(index, 1);
+      if (selectedAlarmId.value === id) {
+        selectedAlarmId.value = defaultAlarm.id;
+      }
+      localStorage.setItem('selectedAlarmId', JSON.stringify(selectedAlarmId.value));
+      ElMessage.success('闹钟铃声删除成功');
+    }
+  };
+  
+  const addAlarmSound = async () => {
+    if (newAlarmPath.value) {
+      try {
+        const response = await fetch(newAlarmPath.value);
+        const blob = await response.blob();
+        const newSound: AlarmSound = {
+          id: Date.now(),
+          name: newAlarmPath.value.split('/').pop() || '新闹钟铃声',
+          audioData: blob,
+          time: '',
+          triggered: false
+        };
+        await saveAlarmSound(newSound);
+        alarmSounds.value.push(newSound);
+        selectedAlarmId.value = newSound.id;
+        localStorage.setItem('selectedAlarmId', JSON.stringify(selectedAlarmId.value));
+        newAlarmPath.value = '';
+        ElMessage.success('音频文件添加成功');
+      } catch (error) {
+        console.error('添加音频文件失败:', error);
+        ElMessage.error('无法添加音频文件，请检查路径是否正确');
+      }
+    } else {
+      ElMessage.error('请输入有效的音频文件路径');
+    }
+  };
+  
+  const loadAudioBlob = async (id: number): Promise<string> => {
+    if (id === defaultAlarm.id) {
+      return URL.createObjectURL(new Blob([defaultAlarm.audioData]));
+    }
+    try {
+      const sound = await db.get('alarmSounds', id);
+      if (sound && sound.audioData) {
+        // 确保 audioData 是 Blob 对象
+        const blob = sound.audioData instanceof Blob ? sound.audioData : new Blob([sound.audioData]);
+        return URL.createObjectURL(blob);
+      }
+      throw new Error('音频文件不存在');
+    } catch (error) {
+      console.error('加载音频文件失败:', error);
+      ElMessage.error('无法加载音频文件，请检查是否存在');
+      return URL.createObjectURL(new Blob([defaultAlarm.audioData]));
+    }
+  };
   
   const loadTimer = () => {
     const ir = localStorage.getItem('isRunning')
@@ -322,12 +418,12 @@
   
   let clockInterval: number
   
-  onMounted(() => {
-    loadAlarmSounds()
-    loadAlarms()
-    loadTimer()
-    updateCurrentTime()
-    clockInterval = window.setInterval(updateCurrentTime, 1000)
+  onMounted(async () => {
+    await loadAlarmSounds();
+    loadAlarms();
+    loadTimer();
+    updateCurrentTime();
+    clockInterval = window.setInterval(updateCurrentTime, 1000);
   })
   
   onUnmounted(() => {
@@ -353,70 +449,26 @@
   const testAlarmSound = async (id: number) => {
     const sound = alarmSounds.value.find(s => s.id === id)
     if (sound) {
-      const audioSrc = await loadAudioBlob(sound.path)
-      const audio = new Audio(audioSrc)
-      console.log('当前闹钟铃声列表:', alarmSounds.value);
-      audio.onerror = () => {
-        ElMessage.error('音频加载失败，请检查文件')
+      try {
+        const audioSrc = await loadAudioBlob(id)
+        const audio = new Audio(audioSrc)
+        console.log('当前闹钟铃声列表:', alarmSounds.value);
+        audio.onerror = (e) => {
+          console.error('音频加载失败:', e);
+          ElMessage.error('音频加载失败，请检查文件')
+        }
+        audio.oncanplaythrough = () => {
+          audio.play()
+          setTimeout(() => audio.pause(), 2000) // 播放2秒
+        }
+      } catch (error) {
+        console.error('测试闹钟铃声失败:', error);
+        ElMessage.error('无法测试闹钟铃声，请重试');
       }
-      audio.oncanplaythrough = () => {
-        audio.play()
-        setTimeout(() => audio.pause(), 2000) // 播放2秒
-      }
-    }
-  }
-  
-  const removeAlarmSound = (id: number) => {
-    const index = alarmSounds.value.findIndex(sound => sound.id === id)
-    if (index !== -1) {
-      alarmSounds.value.splice(index, 1)
-      if (selectedAlarmId.value === id) {
-        selectedAlarmId.value = defaultAlarm.id
-      }
-      saveAlarmSounds()
-      ElMessage.success('闹钟铃声删除成功')
     }
   }
   
   const newAlarmPath = ref('')
-  
-  const addAlarmSound = () => {
-    if (newAlarmPath.value) {
-      const newSound: AlarmSound = {
-        id: Date.now(),
-        name: newAlarmPath.value.split('/').pop() || '新闹钟铃声',
-        path: newAlarmPath.value,
-        time: '',
-        triggered: false
-      }
-      alarmSounds.value.push(newSound)
-      selectedAlarmId.value = newSound.id
-      saveAlarmSounds()
-      newAlarmPath.value = ''
-      ElMessage.success('音频文件路径添加成功')
-    } else {
-      ElMessage.error('请输入有效的音频文件路径')
-    }
-  }
-  
-  const loadAudioBlob = async (path: string): Promise<string> => {
-    if (path === defaultAlarm.path) {
-      return path; // 如果是默认闹钟，直接返回路径
-    }
-    try {
-      // 这里我们假设路径是一个有效的URL或者是一个相对于当前页面的路径
-      const response = await fetch(path);
-      if (!response.ok) {
-        throw new Error('无法加载音频文件');
-      }
-      const blob = await response.blob();
-      return URL.createObjectURL(blob);
-    } catch (error) {
-      console.error('加载音频文件失败:', error);
-      ElMessage.error('无法加载音频文件，请检查路径是否正确');
-      return defaultAlarm.path; // 如果加载失败，返回默认闹钟路径
-    }
-  }
   </script>
   
   <style scoped>
@@ -468,3 +520,4 @@
     align-items: center;
   }
   </style>
+

@@ -20,6 +20,9 @@ importers:
       element-plus:
         specifier: ^2.8.4
         version: 2.8.4(vue@3.5.11(typescript@5.6.2))
+      idb:
+        specifier: ^8.0.0
+        version: 8.0.0
       md-editor-v3:
         specifier: ^4.20.4
         version: 4.20.4(@codemirror/view@6.34.1)(@lezer/common@1.2.2)(vue@3.5.11(typescript@5.6.2))
@@ -1925,6 +1928,9 @@ packages:
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
     engines: {node: '>=0.10.0'}
+
+  idb@8.0.0:
+    resolution: {integrity: sha512-l//qvlAKGmQO31Qn7xdzagVPPaHTxXx199MhrAFuVBTPqydcPYBWjkrbv4Y0ktB+GmWOiwHl237UUOrLmQxLvw==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -5665,6 +5671,8 @@ snapshots:
   iconv-lite@0.6.3:
     dependencies:
       safer-buffer: 2.1.2
+
+  idb@8.0.0: {}
 
   ieee754@1.2.1: {}
 
