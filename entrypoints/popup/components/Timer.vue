@@ -107,7 +107,9 @@
   <script setup lang="ts">
   import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
   import { ElMessage } from 'element-plus'
+  import defaultAlarmAudio from '@/assets/default-alarm.mp3'
   import { openDB, DBSchema, IDBPDatabase } from 'idb';
+  import { useRouter } from 'vue-router'
   
   interface AlarmSound {
     id: number;
@@ -128,18 +130,13 @@
   const defaultAlarm: AlarmSound = {
     id: -1,
     name: '默认闹钟',
-    audioData: new Blob(), // 这里需要替换为实际的默认音频数据
+    audioData: new Blob([defaultAlarmAudio], { type: 'audio/mpeg' }),
     time: '',
     triggered: false
   }
   
   const alarmSounds = ref<AlarmSound[]>([defaultAlarm])
   const selectedAlarmId = ref<number>(defaultAlarm.id)
-  const currentAlarmSrc = computed(() => {
-    const sound = alarmSounds.value.find(sound => sound.id === selectedAlarmId.value)
-    return sound ? URL.createObjectURL(sound.audioData) : URL.createObjectURL(defaultAlarm.audioData)
-  })
-  
   const isAlarm = ref(false)
   
   const formattedTime = computed(() => {
@@ -201,13 +198,14 @@
     localStorage.setItem('savedTime','0')
   }
   
-  const setAlarm = () => {
+  const setAlarm = async () => {
     if (alarmTimeInput.value && alarmTimeInput.value instanceof Date) {
       const now = new Date()
-      const alarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), alarmTimeInput.value.getHours(), alarmTimeInput.value.getMinutes())
+      const alarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 
+        alarmTimeInput.value.getHours(), alarmTimeInput.value.getMinutes())
       
       if (alarmTime <= now) {
-        alarmTime.setDate(alarmTime.getDate() + 1) // 如果时间已过，设置为明天
+        alarmTime.setDate(alarmTime.getDate() + 1)
       }
       
       const newAlarm: AlarmSound = {
@@ -219,7 +217,17 @@
       }
       
       alarms.value.push(newAlarm)
-      saveAlarms()
+      await saveAlarms()
+      // 同步到 background
+      await browser.runtime.sendMessage({ 
+        type: 'SET_ALARMS', 
+        alarms: alarms.value.map(a => ({
+          id: a.id,
+          time: a.time,
+          triggered: a.triggered
+        }))
+      });
+      
       alarmTimeInput.value = ""
       ElMessage.success('闹钟设置成功')
     } else {
@@ -234,8 +242,10 @@
   }
   
   const stopAlarm = () => {
-    isAlarm.value = false
-  }
+    isAlarm.value = false;
+    // 通知 background 停止播放音频
+    browser.runtime.sendMessage({ type: 'STOP_ALARM' });
+  };
   
   const handleFileChange = async (file: any) => {
     if(file.raw.type.startsWith('audio/')){
@@ -418,12 +428,45 @@
   
   let clockInterval: number
   
+  const initDefaultAlarm = async () => {
+    try {
+      const response = await fetch(defaultAlarmAudio);
+      const arrayBuffer = await response.arrayBuffer();
+      defaultAlarm.audioData = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+    } catch (error) {
+      console.error('加载默认闹钟音频失败:', error);
+      ElMessage.error('无法加载默认闹钟音频');
+    }
+  }
+  
+  const router = useRouter()
+  
   onMounted(async () => {
+    await initDefaultAlarm();
     await loadAlarmSounds();
     loadAlarms();
     loadTimer();
     updateCurrentTime();
     clockInterval = window.setInterval(updateCurrentTime, 1000);
+    
+    // 从 background 加载闹钟数据
+    const backgroundAlarms = await browser.runtime.sendMessage({ type: 'GET_ALARMS' });
+    if (backgroundAlarms) {
+      alarms.value = mergeAlarms(alarms.value, backgroundAlarms);
+    }
+    
+    // // 监听来自 background 的消息
+    // browser.runtime.onMessage.addListener((message: { type: string }) => {
+    //   if (message.type === 'TRIGGER_ALARM') {
+    //     triggerAlarm();
+    //   }
+    // });
+    
+    // // 如果是通过通知打开的 popup，自动触发闹钟
+    // const url = new URL(window.location.href);
+    // if (url.searchParams.get('alarm') === 'true') {
+    //   triggerAlarm();
+    // }
   })
   
   onUnmounted(() => {
@@ -469,6 +512,26 @@
   }
   
   const newAlarmPath = ref('')
+  
+  // 添加合并闹钟数据的函数
+  const mergeAlarms = (localAlarms: AlarmSound[], backgroundAlarms: any[]) => {
+    // 使用 Map 来存储合并后的闹钟，以 id 为键
+    const mergedMap = new Map();
+    
+    // 先添加本地闹钟
+    localAlarms.forEach(alarm => mergedMap.set(alarm.id, alarm));
+    
+    // 合并 background 闹钟
+    backgroundAlarms.forEach(bAlarm => {
+      const localAlarm = mergedMap.get(bAlarm.id);
+      if (localAlarm) {
+        // 更新触发状态
+        localAlarm.triggered = bAlarm.triggered;
+      }
+    });
+    
+    return Array.from(mergedMap.values());
+  };
   </script>
   
   <style scoped>

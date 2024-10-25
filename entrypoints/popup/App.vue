@@ -35,11 +35,22 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const routeKey = computed(() => route.path)
+
+onMounted(() => {
+  // 添加全局消息监听
+  browser.runtime.onMessage.addListener((message: { type: string }) => {
+    if (message.type === 'SWITCH_TO_TIMER') {
+      router.push('/timer');
+      console.log('切换到计时器页面');
+    }
+  });
+});
 </script>
 
 <style scoped>
