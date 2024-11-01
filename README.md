@@ -1,7 +1,26 @@
-# WXT + Vue 3
+# BrowserAssistant_dev
 
-This template should help get you started developing with Vue 3 in WXT.
+## 开发进度
 
-## Recommended IDE Setup
+### QuickNotes 功能
+- [x] 实现了基本的目录树结构
+- [x] 支持创建、编辑和删除目录及Markdown文件
+- [x] 集成了Markdown编辑器和预览功能
+- [x] 实现了侧边栏的折叠/展开功能
+- [x] 数据持久化存储在本地存储中
 
-- [VS Code](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
+### 待完成功能
+- [ ] HealthUsage    --zs,lzy
+- [ ] Timer          --dyr
+- [ ] PersonalSpace
+
+## 项目描述
+BrowserAssistant_dev 是一个浏览器扩展项目，旨在提供各种实用的浏览器辅助功能。目前已完成 QuickNotes 功能，允许用户在浏览器中快速记录和组织笔记。
+
+## 如何使用
+（待补充：安装说明和使用指南）
+
+## 贡献
+欢迎贡献代码或提出建议。请提交 Pull Request 或创建 Issue。
+
+## 许可证

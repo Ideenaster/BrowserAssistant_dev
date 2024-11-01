@@ -1,3 +1,15 @@
 {
-  "extends": "./.wxt/tsconfig.json"
+  "extends": "./.wxt/tsconfig.json",
+  // "include": [
+  //   // ... 其他条目
+  //   "shims-vue.d.ts"
+  // ],
+  "compilerOptions": {
+    // 其他选项...
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "types": [
+    ]
+  }
 }

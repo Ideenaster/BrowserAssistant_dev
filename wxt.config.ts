@@ -8,6 +8,18 @@ export default defineConfig({
     name: 'Chrome Extension',
     description: 'Chrome Extension',
     version: packageJson.version,
-    permissions: ['storage'],
-  },
+    permissions: [
+      'storage',
+      'alarms',
+      'notifications',
+      'background'
+    ],
+    web_accessible_resources: [{
+      resources: ['assets/*'],  // 允许访问资源文件
+      matches: ['<all_urls>']
+    }],
+    content_security_policy: {
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval' http://localhost:3000; object-src 'self';"
+    },
+  }
 });
