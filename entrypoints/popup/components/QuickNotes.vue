@@ -1,10 +1,11 @@
-<template>  
+<template>
     <div>
-        <h1>个人空间</h1>
+        <h1>快捷笔记</h1>
     </div>
 </template>
 
 <script setup lang="ts">
 
 </script>
+
 

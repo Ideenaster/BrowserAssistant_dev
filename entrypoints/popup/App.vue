@@ -20,11 +20,11 @@
                     </el-icon>
                     <span>计时器</span>
                 </el-menu-item>
-                <el-menu-item index="/personal">
+                <el-menu-item index="/focus">
                     <el-icon>
                         <User />
                     </el-icon>
-                    <span>个人空间</span>
+                    <span>专注模式</span>
                 </el-menu-item>
             </el-menu>
         </el-aside>
@@ -35,43 +35,20 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const router = useRouter()
 const routeKey = computed(() => route.path)
-
-onMounted(() => {
-  // 添加全局消息监听
-  browser.runtime.onMessage.addListener((message: { type: string }) => {
-    if (message.type === 'SWITCH_TO_TIMER') {
-      router.push('/timer');
-      console.log('切换到计时器页面');
-    }
-  });
-});
 </script>
 
 <style scoped>
 .main-container {
     width: 700px;
     height: 430px;
-    padding: 0;
-    display: flex;
 }
 
 .el-menu-vertical {
-    height: 100%;
-}
-
-.el-main {
-    padding: 5px;
-    height: 100%;
-    overflow: hidden;
-}
-
-:deep(.el-main > div) {
     height: 100%;
 }
 </style>

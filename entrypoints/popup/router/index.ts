@@ -1,15 +1,17 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import HealthUsage from '../components/HealthUsage/HealthUsage.vue'
-import QuickNotes from '../components/QuickNotes/QuickNotes.vue'
+
+import QuickNotes from '../components/QuickNotes.vue'
+import HealthUsage from '../components/StatsInfo.vue'
 import Timer from '../components/Timer.vue'
 import PersonalSpace from '../components/PersonalSpace.vue'
+import FocusMode from '../components/FocusMode.vue'
 
 const routes = [
   { path: '/', redirect: '/health' },
   { path: '/health', component: HealthUsage },
   { path: '/notes', component: QuickNotes },
   { path: '/timer', component: Timer },
-  { path: '/personal', component: PersonalSpace },
+  { path: '/focus', component: FocusMode },
 ]
 
 const router = createRouter({
