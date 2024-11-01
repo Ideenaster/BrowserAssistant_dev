@@ -20,11 +20,11 @@
                     </el-icon>
                     <span>计时器</span>
                 </el-menu-item>
-                <el-menu-item index="/personal">
+                <el-menu-item index="/focus">
                     <el-icon>
                         <User />
                     </el-icon>
-                    <span>个人空间</span>
+                    <span>专注模式</span>
                 </el-menu-item>
             </el-menu>
         </el-aside>
@@ -55,7 +55,7 @@ onMounted(() => {
 
 <style scoped>
 .main-container {
-    width: 700px;
+    width: 750px;
     height: 430px;
     padding: 0;
     display: flex;
@@ -65,7 +65,7 @@ onMounted(() => {
     height: 100%;
 }
 
-.el-main {
+/* .el-main {
     padding: 5px;
     height: 100%;
     overflow: hidden;
@@ -73,5 +73,5 @@ onMounted(() => {
 
 :deep(.el-main > div) {
     height: 100%;
-}
+} */
 </style>
