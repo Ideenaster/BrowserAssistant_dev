@@ -1,9 +1,10 @@
 <template>
-  <div>
+  <el-container class="focus-container">
+    <el-main>
     <h2>专注模式</h2>
 
     <!-- 黑名单输入 -->
-    <el-form :model="form">
+    <el-form>
       <el-form-item label="添加黑名单域名">
         <el-input v-model="newDomain" placeholder="输入域名"></el-input>
         <el-button @click="addDomainToBlacklist" type="primary">添加</el-button>
@@ -64,7 +65,8 @@
     >
       <el-button type="primary" @click="showViolationWarning = false">确定</el-button>
     </el-message-box>
-  </div>
+  </el-main>
+  </el-container>
 </template>
 
  <script lang="ts">
@@ -288,18 +290,18 @@
 <!-- 添加一个按钮获取focus状态，点击这个按钮可以发一个message到back，back在发一个信息到vue，然后显示出来，
 主要就是专注模式还剩多少时间，还有是否处在专注模式 -->
  
- <style scoped>
- .focus-mode {
-   padding: 20px;
- }
- 
- .blacklist-manager,
- .focus-control,
- .focus-history {
-   margin-bottom: 20px;
- }
- 
- .el-button {
-   margin-top: 10px;
- }
- </style>
+<style scoped>
+.focus-mode {
+  padding: 20px;
+}
+
+.blacklist-manager,
+.focus-control,
+.focus-history {
+  margin-bottom: 20px;
+}
+
+.el-button {
+  margin-top: 10px;
+}
+</style>

@@ -77,5 +77,5 @@ onMounted(() => {
 
 :deep(.el-main > div) {
     height: 100%;
-}
+} 
 </style>
