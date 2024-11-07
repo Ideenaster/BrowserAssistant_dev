@@ -49,7 +49,24 @@ onMounted(() => {
       router.push('/timer');
       console.log('切换到计时器页面');
     }
+    if (message.type === 'SWITCH_TO_FOCUS') {
+      router.push('/focus');
+      console.log('切换到专注模式界面');
+
+
+    }
+   
   });
+//   chrome.runtime.onMessage.addListener((message) => {
+      
+//   if (message.action === 'SWITCH_TO_FOCUS') {
+//       router.push('/focus');
+//       console.log('切换到专注模式界面');
+//       chrome.runtime.sendMessage({ action: 'focusModeEnded' });
+//     }
+//     });
+
+
 });
 </script>
 
@@ -65,7 +82,7 @@ onMounted(() => {
     height: 100%;
 }
 
-.el-main {
+/* .el-main {
     padding: 5px;
     height: 100%;
     overflow: hidden;
@@ -73,5 +90,5 @@ onMounted(() => {
 
 :deep(.el-main > div) {
     height: 100%;
-} 
+} */
 </style>

@@ -243,7 +243,7 @@ let blacklist: string[] = [];
 let isFocusModeActive = false;
 let focusDuration: number | null = null;
 let warningWindowId: number | null = null;
-let focusTimer: ReturnType<typeof setTimeout> | null = null;
+let focusTimer: number | null = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Received message:', message);
@@ -260,17 +260,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (focusTimer) {
       clearTimeout(focusTimer);
     }
-    if (focusDuration) {
-      focusTimer = setTimeout(() => {
-        endFocusMode();
-      }, focusDuration * 60 * 1000);
-    }
+    focusTimer = setTimeout(() => {
+      endFocusMode();
+    }, focusDuration * 60 * 1000);
   } else if (message.action === 'endFocusMode') {
     endFocusMode();
   }
 });
 
-function endFocusMode() {
+async function endFocusMode() {
   isFocusModeActive = false;
   focusDuration = null;
   console.log('专注模式结束');
@@ -286,12 +284,18 @@ function endFocusMode() {
     chrome.windows.remove(warningWindowId);
     warningWindowId = null;
   }
+   // 打开弹出窗口并切换到计时器页面
+   await browser.action.openPopup();
 
-  // 向Vue组件发送消息
-  chrome.runtime.sendMessage({ action: 'focusModeEnded' });
+   // 先发送消息切换路由
+   await browser.runtime.sendMessage({ type: 'SWITCH_TO_FOCUS' });
 
-  // 强制打开popup
-  chrome.action.openPopup();
+   setTimeout(() => {
+    // 向Vue组件发送消息
+    browser.runtime.sendMessage({ action: 'focusModeEnded' });
+  }, 2000); // 等待2秒，你可以根据需要调整这个时间
+   
+
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -299,9 +303,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (isFocusModeActive && tab.url && changeInfo.status === 'complete') {
     const domain = new URL(tab.url).hostname;
     console.log('Checking domain:', domain);
-    const isBlacklisted = blacklist.some((blacklistDomain) =>
-      domain.includes(blacklistDomain)
-    );
+    
+    // 修改这里的判断逻辑
+    const isBlacklisted = blacklist.some((blacklistDomain) => {
+      // 将域名转换为正则表达式
+      const regex = new RegExp(`(^|\\.)${blacklistDomain.replace(/\./g, '\\.')}$`);
+      return regex.test(domain);
+    });
+    
     console.log('Is blacklisted:', isBlacklisted);
 
     if (isBlacklisted) {
@@ -321,7 +330,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           width: 400,
           height: 200
         }, (window) => {
-          if (window && window.id !== undefined) {
+          if (window) {
             warningWindowId = window.id;
             // 设置定时器，5秒后自动关闭警告窗口
             setTimeout(() => {
@@ -343,9 +352,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
   }
 });
-
 // 监听窗口关闭事件
-chrome.windows.onRemoved.addListener((windowId: number) => {
+chrome.windows.onRemoved.addListener((windowId) => {
   if (windowId === warningWindowId) {
     warningWindowId = null;
   }

@@ -1,10 +1,9 @@
 <template>
-  <el-container class="focus-container">
-    <el-main>
+  <div>
     <h2>专注模式</h2>
 
     <!-- 黑名单输入 -->
-    <el-form>
+    <el-form :model="form">
       <el-form-item label="添加黑名单域名">
         <el-input v-model="newDomain" placeholder="输入域名"></el-input>
         <el-button @click="addDomainToBlacklist" type="primary">添加</el-button>
@@ -65,8 +64,7 @@
     >
       <el-button type="primary" @click="showViolationWarning = false">确定</el-button>
     </el-message-box>
-  </el-main>
-  </el-container>
+  </div>
 </template>
 
  <script lang="ts">
@@ -256,13 +254,13 @@
          console.error('结束专注模式时出错:', error);
        }
      };
-
-     onMounted(() => {
-    loadData();
-    
+  
+  onMounted(() => {
+  loadData();
     // 添加消息监听器
-    chrome.runtime.onMessage.addListener((message: { action: string }) => {
+    browser.runtime.onMessage.addListener((message) => {
       if (message.action === 'focusModeEnded') {
+        console.log("收到专注模式结束的消息")
         endFocusMode();
       }
     });
