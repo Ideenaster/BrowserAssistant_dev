@@ -21,7 +21,31 @@
             </el-button-group>
           </el-card>
         </el-col>
-        <el-col :span="12">
+      </el-row>
+        <el-row :gutter="20" style="margin-top: 20px;">
+          <el-col :span="12">
+            <el-card>
+              <template #header>
+                <div class="card-header">
+                  <span>倒计时</span>
+                </div>
+              </template>
+              <div>剩余时间: {{ formattedCountdown }}</div>
+              <el-button-group>
+                <el-button type="primary" @click="startCountdown" :disabled="countdownRunning">开始</el-button>
+                <el-button type="warning" @click="stopCountdown" :disabled="!countdownRunning">停止</el-button>
+                <el-button type="danger" @click="resetCountdown">重置</el-button>
+              </el-button-group>
+              <el-form>
+                <el-form-item label="设置倒计时">
+                  <el-time-picker v-model="countdownTime" format="HH:mm:ss" value-format="HH:mm:ss" placeholder="选择时间" style="width: 150px; margin-right: 10px;"></el-time-picker>
+                  <el-button type="primary" @click="setCountdown">设置</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+        
+        <el-col :span="12"style="margin-top: -182.5px;" >
           <el-card>
             <template #header>
               <div class="card-header">
@@ -97,7 +121,10 @@
             </el-form>
           </el-card>
         </el-col>
+
+
       </el-row>
+
     </el-main>
     <el-footer>
       <el-dialog v-model="isAlarm" title="闹钟响了！" width="30%" center>
@@ -112,8 +139,10 @@
   </el-container>
 </template>
 
+
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+
 import { ElMessage } from 'element-plus'
 import defaultAlarmAudio from '@/assets/default-alarm.mp3'
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
@@ -128,6 +157,136 @@ interface AlarmSound {
   triggered: boolean;
 }
 
+interface WorldClock {
+  city: string;
+  timezone: string;
+  time: string;
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+const worldClocks = ref<WorldClock[]>([
+  { city: '北京', timezone: 'Asia/Shanghai', time: '', hours: 0, minutes: 0, seconds: 0 },
+  { city: '莫斯科', timezone: 'Europe/Moscow', time: '', hours: 0, minutes: 0, seconds: 0 },
+  { city: '洛杉矶', timezone: 'America/Los_Angeles', time: '', hours: 0, minutes: 0, seconds: 0 },
+  { city: '东京', timezone: 'Asia/Tokyo', time: '', hours: 0, minutes: 0, seconds: 0 },
+  { city: '巴黎', timezone: 'Europe/Paris', time: '', hours: 0, minutes: 0, seconds: 0 },
+  { city: '纽约', timezone: 'America/New_York', time: '', hours: 0, minutes: 0, seconds: 0 },
+]);
+const updateWorldClocks = () => {
+  const now = new Date();
+  worldClocks.value.forEach(clock => {
+    const options: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZone: clock.timezone,
+    };
+    const timeString = now.toLocaleTimeString('zh-CN', options);
+    clock.time = timeString;
+    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+    clock.hours = hours % 12;
+    clock.minutes = minutes;
+    clock.seconds = seconds;
+  });
+};
+
+const countdownTime = ref<string>('00:01:00')
+watch(countdownTime, () => {
+  saveAll()
+})
+const countdownRemaining = ref<number>(60)
+const countdownRunning = ref(false)
+let countdownInterval: number | null = null
+const countdownTargetTime = ref<number | null>(null)
+  
+const formattedCountdown = computed(() => {
+  const t = countdownRemaining.value
+  const h = Math.floor(t / 3600)
+  const m = Math.floor((t % 3600) / 60)
+  const s = t % 60
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+})
+
+const startCountdown = () => {
+  if(countdownRemaining.value > 0 && !countdownInterval){
+    if(!countdownTargetTime.value){
+      countdownTargetTime.value = Date.now() + countdownRemaining.value * 1000
+    }
+    countdownRunning.value = true
+    countdownInterval = window.setInterval(() => {
+      const remaining = Math.floor((countdownTargetTime.value! - Date.now()) / 1000)
+      countdownRemaining.value = remaining > 0 ? remaining : 0
+      if(countdownRemaining.value <= 0){
+        stopCountdown()
+        ElMessage.success('倒计时完成')
+        triggerAlarm()
+      }
+    }, 1000)
+    saveAll()
+  }
+}
+const stopCountdown = () => {
+  if(countdownRunning.value){
+    countdownRunning.value = false
+    if(countdownInterval !== null){
+      clearInterval(countdownInterval)
+      countdownInterval = null
+    }
+    countdownTargetTime.value = null // 清除目标时间
+    saveAll()
+  }
+}
+
+const resetCountdown = () => {
+  stopCountdown()
+  const [h, m, s] = countdownTime.value.split(':').map(Number)
+  countdownRemaining.value = h * 3600 + m * 60 + s
+  countdownTargetTime.value = Date.now() + countdownRemaining.value * 1000
+  localStorage.setItem('countdownTargetTime', countdownTargetTime.value.toString())
+  countdownRunning.value = true
+  startCountdown()
+  stopCountdown()
+  saveAll()
+}
+
+const setCountdown = () => {
+  const [h, m, s] = countdownTime.value.split(':').map(Number)
+  countdownRemaining.value = h * 3600 + m * 60 + s
+  countdownTargetTime.value = Date.now() + countdownRemaining.value * 1000
+  ElMessage.success('倒计时设置成功')
+  saveAll()
+}
+
+
+const loadCountdown = () => {
+  const ct = localStorage.getItem('countdownTime') // 添加此行
+  if(ct){
+    countdownTime.value = ct // 添加此行
+  }
+
+  const cr = localStorage.getItem('countdownRunning')
+  countdownRunning.value = cr === 'true'
+  
+  const ctt = localStorage.getItem('countdownTargetTime')
+  if(ctt && countdownRunning.value){
+    countdownTargetTime.value = parseInt(ctt,10)
+    const remaining = Math.floor((countdownTargetTime.value - Date.now()) / 1000)
+    countdownRemaining.value = remaining > 0 ? remaining : 0
+    if(remaining > 0){
+      startCountdown()
+    } else {
+      countdownRunning.value = false
+      saveAll()
+    }
+  }
+  
+  //const ci = localStorage.getItem('countdownInput')
+  //if(ci){
+    //countdownInput.value = JSON.parse(ci)
+  //}
+}
 
 const isRunning = ref(false)
 const timerInterval = ref<number | null>(null)
@@ -448,6 +607,14 @@ const saveAll = () => {
     localStorage.removeItem('timerStart')
   }
   localStorage.setItem('savedTime', savedTime.value.toString())
+
+  localStorage.setItem('countdownRunning', countdownRunning.value.toString())
+  localStorage.setItem('countdownTime', countdownTime.value) // 添加此行
+  if(countdownTargetTime.value){
+    localStorage.setItem('countdownTargetTime', countdownTargetTime.value.toString())
+  } else {
+    localStorage.removeItem('countdownTargetTime')
+  }
 }
 
 let clockInterval: number
@@ -470,6 +637,10 @@ onMounted(async () => {
   await loadAlarmSounds();
   loadAlarms();
   loadTimer();
+  loadCountdown(); // 添加加载倒计时
+  if(countdownRunning.value && countdownRemaining.value > 0){
+    startCountdown()
+  }
   updateCurrentTime();
   clockInterval = window.setInterval(updateCurrentTime, 1000);
   
@@ -478,6 +649,8 @@ onMounted(async () => {
   if (backgroundAlarms) {
     alarms.value = mergeAlarms(alarms.value, backgroundAlarms);
   }
+  updateWorldClocks();
+  clockInterval = window.setInterval(updateWorldClocks, 1000);
   
   // // 监听来自 background 的消息
   // browser.runtime.onMessage.addListener((message: { type: string }) => {
@@ -496,6 +669,10 @@ onMounted(async () => {
 onUnmounted(() => {
   if(timerInterval.value) clearInterval(timerInterval.value)
   if(clockInterval) clearInterval(clockInterval)
+  if(countdownInterval){
+    clearInterval(countdownInterval)
+    countdownInterval = null
+  }
   saveAll()
 })
 
@@ -605,6 +782,87 @@ const mergeAlarms = (localAlarms: AlarmSound[], backgroundAlarms: any[]) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.world-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* 改为左对齐 */
+  justify-content: center;
+  padding: 5px; /* 减小内边距 */
+  width: 100%; /* 确保宽度为100%以居中对齐 */
+  box-sizing: border-box; /* 包括内边距在内 */
+}
+.world-clock div {
+  font-size: 11px;
+}
+.world-clock > div:first-child {
+  margin-bottom: -5px; /* 增加城市名称与钟表之间的间距 */
+  margin-left: 10px; /* 向右移动城市名称 */
+}
+
+.world-clock .analog-clock {
+  margin-left: -10px; /* 向左移动钟表 */
+}
+.clock-icon {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 10px;
+}
+.analog-clock {
+  width: 60px; /* 缩小宽度 */
+  height: 60px; /* 缩小高度 */
+  border: 2px solid #333;
+  border-radius: 50%;
+  position: relative;
+  margin: 10px auto 10px 0; /* 修改左边距为0，移除自动水平居中 */
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.clock-face {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* 移除 transform 属性 */
+}
+
+.clock-face::after {
+  content: '';
+  width: 4px;
+  height: 4px;
+  background: #333;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.hand {
+  width: 50%;
+  height: 2px;
+  background: #333;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: 0% 50%; /* 修改 transform-origin 为左端 */
+  transition: transform 0.5s ease-in-out;
+}
+
+.hour-hand {
+  width: 35%;
+  background: #000;
+}
+
+.minute-hand {
+  width: 45%;
+  background: #555;
+}
+
+.second-hand {
+  width: 50%;
+  background: red;
 }
 </style>
 
