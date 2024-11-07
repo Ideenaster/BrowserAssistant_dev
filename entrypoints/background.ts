@@ -56,26 +56,42 @@ interface RuntimeSender {
   id?: string;
 }
 
-// 修复事件监听器的类型
+// 修改初始化数据的方式
 chrome.storage.local.get('tabTimeData', (result: StorageResult) => {
-  Object.assign(tabTimeData, result.tabTimeData || {});
+  if (result.tabTimeData) {
+    Object.assign(tabTimeData, result.tabTimeData);
+    console.log('从存储中加载的数据:', tabTimeData);
+  } else {
+    console.log('没有找到存储的数据，使用空对象初始化');
+  }
 });
 
-// 更新活动标签页的使用时间
+// 修改更新函数，添加更多日志
 function updateActiveTabTime() {
   if (activeTabId !== null && activeStartTime !== null) {
     const currentTime = Date.now();
     const timeSpent = currentTime - activeStartTime;
-
-    // 更新总时间
-    if (tabTimeData[activeTabId]) {
-      tabTimeData[activeTabId].totalTime += timeSpent;
+    console.log('当前活动标签页:', activeTabId);
+    console.log('计算的时间间隔:', timeSpent);
+    
+    // 确保对象存在
+    if (!tabTimeData[activeTabId]) {
+      tabTimeData[activeTabId] = {
+        url: '',  // 将在后续更新
+        startTime: currentTime,
+        totalTime: 0
+      };
     }
-
+    
+    // 更新总时间
+    tabTimeData[activeTabId].totalTime += timeSpent;
+    console.log('更新后的数据:', tabTimeData);
     activeStartTime = currentTime;
 
-    // 保存更新后的数据到本地存储
+    // 立即保存到存储
     chrome.storage.local.set({ tabTimeData });
+  } else {
+    console.log('没有活动标签页或开始时间');
   }
 }
 
@@ -83,33 +99,36 @@ export default defineBackground(() => {
   // 定时更新活动标签页的数据
   setInterval(() => {
     if (!isMinimized) {
+      console.log('updateActiveTabTime');
       updateActiveTabTime();
     }
   }, updateInterval);
 
   // 监听标签页激活事件
   chrome.tabs.onActivated.addListener((activeInfo: TabActiveInfo) => {
-    updateActiveTabTime();
-
-    // 更新当前活动标签页的ID和开始时间
+    console.log('标签页激活事件触发');
     activeTabId = activeInfo.tabId;
     activeStartTime = Date.now();
 
-    // 如果当前标签页没有记录，获取其信息并初始化
-    if (activeTabId !== null && !tabTimeData[activeTabId]) {
-      chrome.tabs.get(activeTabId, (tab) => {
-        if (tab && tab.url) {
+    // 获取当前标签页信息并更新URL
+    chrome.tabs.get(activeTabId, (tab) => {
+      if (tab && tab.url) {
+        console.log('更新标签页URL:', tab.url);
+        if (!tabTimeData[activeTabId as number]) {
           tabTimeData[activeTabId as number] = {
             url: tab.url,
             startTime: Date.now(),
             totalTime: 0,
           };
+        } else {
+          // 确保即使是已存在的标签页也更新URL
+          tabTimeData[activeTabId as number].url = tab.url;
         }
-      });
-    } else if (activeTabId !== null) {
-      // 更新开始时间
-      tabTimeData[activeTabId as number].startTime = Date.now();
-    }
+        // 保存更新后的数据
+        chrome.storage.local.set({ tabTimeData });
+      }
+    });
+    updateActiveTabTime();
   });
 
   // 监听标签页更新事件
@@ -118,20 +137,21 @@ export default defineBackground(() => {
     changeInfo: chrome.tabs.TabChangeInfo,
     tab: chrome.tabs.Tab
   ) => {
-    if (changeInfo.status === 'complete' && tab.url) {
+    console.log('标签页更新事件触发', { changeInfo, tab });
+    if (changeInfo.url || (changeInfo.status === 'complete' && tab.url)) {
+      console.log('更新标签页URL:', tab.url);
       if (!tabTimeData[tabId]) {
-        // 初始化新的标签页数据
         tabTimeData[tabId] = {
-          url: tab.url,
+          url: tab.url!,
           startTime: Date.now(),
           totalTime: 0,
         };
       } else {
-        // 更新已有标签页的数据
-        updateActiveTabTime();
-        tabTimeData[tabId].url = tab.url;
-        tabTimeData[tabId].startTime = Date.now();
+        // 更新已有标签页的URL
+        tabTimeData[tabId].url = tab.url!;
       }
+      // 保存更新后的数据
+      chrome.storage.local.set({ tabTimeData });
     }
   });
 
@@ -172,11 +192,12 @@ export default defineBackground(() => {
   // 监听消息事件，返回时间数据
   chrome.runtime.onMessage.addListener((
     message: RuntimeMessage,
-    sender: RuntimeSender,
+    sender: chrome.runtime.MessageSender,
     sendResponse: (response?: any) => void
   ) => {
     if (message.action === 'getTabTimeData') {
       sendResponse(tabTimeData);
+      console.log('返回的数据:', tabTimeData);
     }
   });
 

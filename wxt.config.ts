@@ -12,7 +12,8 @@ export default defineConfig({
       'storage',
       'alarms',
       'notifications',
-      'background'
+      'background',
+      'tabs'
     ],
     web_accessible_resources: [{
       resources: ['assets/*'],  // 允许访问资源文件

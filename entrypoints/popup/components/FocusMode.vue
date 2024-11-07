@@ -260,7 +260,7 @@
   onMounted(() => {
   loadData();
     // 添加消息监听器
-    browser.runtime.onMessage.addListener((message) => {
+    browser.runtime.onMessage.addListener((message: any) => {
       if (message.action === 'focusModeEnded') {
         console.log("收到专注模式结束的消息")
         endFocusMode();
