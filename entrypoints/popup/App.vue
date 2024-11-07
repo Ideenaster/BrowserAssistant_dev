@@ -20,11 +20,11 @@
                     </el-icon>
                     <span>计时器</span>
                 </el-menu-item>
-                <el-menu-item index="/personal">
+                <el-menu-item index="/focus">
                     <el-icon>
                         <User />
                     </el-icon>
-                    <span>个人空间</span>
+                    <span>专注模式</span>
                 </el-menu-item>
             </el-menu>
         </el-aside>
@@ -49,13 +49,17 @@ onMounted(() => {
       router.push('/timer');
       console.log('切换到计时器页面');
     }
+    if (message.type === 'SWITCH_TO_FOCUS') {
+      router.push('/focus');
+      console.log('切换到专注模式界面');
+    }
   });
 });
 </script>
 
 <style scoped>
 .main-container {
-    width: 700px;
+    width: 750px;
     height: 430px;
     padding: 0;
     display: flex;
@@ -73,5 +77,5 @@ onMounted(() => {
 
 :deep(.el-main > div) {
     height: 100%;
-}
+} 
 </style>

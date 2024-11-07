@@ -24,4 +24,3 @@ BrowserAssistant_dev 是一个浏览器扩展项目，旨在提供各种实用�
 欢迎贡献代码或提出建议。请提交 Pull Request 或创建 Issue。
 
 ## 许可证
-

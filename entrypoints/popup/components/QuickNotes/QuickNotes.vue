@@ -74,7 +74,7 @@ onMounted(() => {
     display: flex;
     height: 100vh;
     width: 100%;
-    overflow: hidden; /* 添加这行 */
+    overflow: hidden; 
 }
 
 .sidebar {
@@ -84,8 +84,9 @@ onMounted(() => {
     position: relative;
     display: flex;
     flex-direction: column;
-    padding: 0; /* 修改这行 */
-    margin: 0; /* 添加这行 */
+    padding: 0; 
+    margin: 0; 
+    overflow: auto;
 }
 
 .sidebar-collapsed {
@@ -111,7 +112,7 @@ onMounted(() => {
     flex-direction: column;
     padding: 0;
     margin: 0;
-    overflow: hidden; /* 修改这行 */
+    overflow: hidden; 
 }
 </style>
 

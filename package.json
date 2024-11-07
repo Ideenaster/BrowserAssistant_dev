@@ -16,15 +16,18 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
-    "@kangc/v-md-editor": "^2.3.18",
     "@wxt-dev/module-vue": "^1.0.1",
+    "echarts": "^5.5.1",
     "element-plus": "^2.8.4",
     "idb": "^8.0.0",
     "md-editor-v3": "^4.20.4",
+    "psl": "^1.9.0",
     "vue": "^3.5.11",
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
+    "@types/chrome": "^0.0.277",
+    "@wxt-dev/module-vue": "^1.0.1",
     "typescript": "^5.6.2",
     "vue-tsc": "^2.1.6",
     "wxt": "^0.19.11"
