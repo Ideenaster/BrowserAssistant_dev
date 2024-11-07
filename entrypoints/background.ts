@@ -223,7 +223,6 @@ export default defineBackground(() => {
 
       // 打开弹出窗口并切换到计时器页面
       await browser.action.openPopup();
-
       // 先发送消息切换路由
       await browser.runtime.sendMessage({ type: 'SWITCH_TO_TIMER' });
 
@@ -243,7 +242,7 @@ let blacklist: string[] = [];
 let isFocusModeActive = false;
 let focusDuration: number | null = null;
 let warningWindowId: number | null = null;
-let focusTimer: number | null = null;
+let focusTimer: NodeJS.Timeout | null = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Received message:', message);
@@ -260,9 +259,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (focusTimer) {
       clearTimeout(focusTimer);
     }
-    focusTimer = setTimeout(() => {
-      endFocusMode();
-    }, focusDuration * 60 * 1000);
+    if (focusDuration) {
+      focusTimer = setTimeout(() => {
+        endFocusMode();
+      }, focusDuration * 60 * 1000);
+    }
   } else if (message.action === 'endFocusMode') {
     endFocusMode();
   }
@@ -330,7 +331,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           width: 400,
           height: 200
         }, (window) => {
-          if (window) {
+          if (window && window.id !== undefined) {
             warningWindowId = window.id;
             // 设置定时器，5秒后自动关闭警告窗口
             setTimeout(() => {
@@ -342,7 +343,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           }
         });
       }
-
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icon.png',
