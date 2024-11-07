@@ -12,7 +12,13 @@
         >
           <template #default="{ node, data }">
             <div class="custom-tree-node">
-              <span class="node-label">{{ node.label }}</span>
+              <span class="node-label">
+                <el-icon style="margin-right: 4px;">
+                  <Folder v-if="data.type === 'directory'" />
+                  <Document v-else />
+                </el-icon>
+                {{ node.label }}
+              </span>
               <el-dropdown trigger="click">
                 <el-button size="small" style="padding: 2px 4px;font-size:15px;">
                   <el-icon><More /></el-icon>
@@ -41,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { More } from '@element-plus/icons-vue'
+import { More, Folder, Document } from '@element-plus/icons-vue'
 import { ref, onMounted } from 'vue'
 import { ElTree, ElMessageBox, ElMessage } from 'element-plus'
 
@@ -82,18 +88,47 @@ const saveTreeData = () => {
   localStorage.setItem('directoryTreeData', JSON.stringify(treeData.value))
 }
 
+const validateNodeName = (name: string, parent: TreeNode | null, type: 'directory' | 'file'): boolean => {
+  if (!name.trim()) {
+    ElMessage.error('名称不能为空')
+    return false
+  }
+
+  const siblings = parent ? parent.children : treeData.value
+  const exists = siblings?.some(node => 
+    node.label === name && node.type === type
+  )
+  
+  if (exists) {
+    ElMessage.error(`该${type === 'directory' ? '目录' : '文件'}名称已存在`)
+    return false
+  }
+  
+  return true
+}
+
 const appendNode = (data: TreeNode) => {
-  const newChild: TreeNode = { 
-    id: Date.now().toString(), 
-    label: '新目录', 
-    children: [],
-    type: 'directory'
-  }
-  if (!data.children) {
-    data.children = []
-  }
-  data.children.push(newChild)
-  saveTreeData()
+  ElMessageBox.prompt('请输入目录名称', '新建目录', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+  }).then(({ value }) => {
+    if (!validateNodeName(value, data, 'directory')) {
+      return Promise.reject()
+    }
+    const newChild: TreeNode = { 
+      id: Date.now().toString(), 
+      label: value, 
+      children: [],
+      type: 'directory'
+    }
+    if (!data.children) {
+      data.children = []
+    }
+    data.children.push(newChild)
+    saveTreeData()
+  }).catch(() => {
+    ElMessage.info('取消新建目录')
+  })
 }
 
 const editNode = (node: any, data: TreeNode) => {
@@ -103,6 +138,9 @@ const editNode = (node: any, data: TreeNode) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
   }).then(({ value }) => {
+    if (!validateNodeName(value, node.parent.data, data.type)) {
+      return Promise.reject()
+    }
     data.label = value
     saveTreeData()
   }).catch(() => {
@@ -132,6 +170,9 @@ const addRootNode = () => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
   }).then(({ value }) => {
+    if (!validateNodeName(value, null, 'directory')) {
+      return Promise.reject()
+    }
     const newRoot: TreeNode = { 
       id: Date.now().toString(), 
       label: value, 
@@ -150,11 +191,14 @@ const addMdFile = (data: TreeNode) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
   }).then(({ value }) => {
+    if (!validateNodeName(value, data, 'file')) {
+      return Promise.reject()
+    }
     const newFile: TreeNode = { 
       id: Date.now().toString(), 
       label: value, 
       type: 'file',
-      content: '' // 初始化空内容
+      content: ''
     }
     if (!data.children) {
       data.children = []

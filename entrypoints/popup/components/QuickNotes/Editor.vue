@@ -54,7 +54,7 @@ const toolbars: (ToolbarNames | number)[] = [
   '-',
   0,
   'preview',
-  'katex',
+  // 'katex',
 ]
 
 const handleChange = (value: string) => {
