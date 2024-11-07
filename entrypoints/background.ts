@@ -1,3 +1,5 @@
+// 添加Chrome扩展API的类型定义
+
 interface TabTimeData {
   [tabId: number]: {
     url: string;
@@ -12,6 +14,22 @@ interface AlarmInfo {
   triggered: boolean;
 }
 
+// 为事件监听器添加类型
+interface TabActiveInfo {
+  tabId: number;
+  windowId: number;
+}
+
+interface TabChangeInfo {
+  status?: string;
+  url?: string;
+}
+
+interface ChromeWindow {
+  id?: number;
+  state?: string;
+}
+
 const tabTimeData: TabTimeData = {};
 let activeTabId: number | null = null;
 let activeStartTime: number | null = null;
@@ -20,8 +38,26 @@ let isMinimized = false; // 标识窗口是否最小化
 // 定时器间隔（例如，每分钟更新一次）
 const updateInterval = 3000; // 3秒
 
-// 从本地存储加载数据
-chrome.storage.local.get('tabTimeData', (result) => {
+// 添加必要的接口定义
+interface StorageResult {
+  tabTimeData?: TabTimeData;
+}
+
+interface RuntimeMessage {
+  action: string;
+  blacklist?: string[];
+  focusDuration?: number;
+  type?: string;
+  alarms?: AlarmInfo[];
+}
+
+interface RuntimeSender {
+  tab?: chrome.tabs.Tab;
+  id?: string;
+}
+
+// 修复事件监听器的类型
+chrome.storage.local.get('tabTimeData', (result: StorageResult) => {
   Object.assign(tabTimeData, result.tabTimeData || {});
 });
 
@@ -52,7 +88,7 @@ export default defineBackground(() => {
   }, updateInterval);
 
   // 监听标签页激活事件
-  chrome.tabs.onActivated.addListener((activeInfo) => {
+  chrome.tabs.onActivated.addListener((activeInfo: TabActiveInfo) => {
     updateActiveTabTime();
 
     // 更新当前活动标签页的ID和开始时间
@@ -77,7 +113,11 @@ export default defineBackground(() => {
   });
 
   // 监听标签页更新事件
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  chrome.tabs.onUpdated.addListener((
+    tabId: number,
+    changeInfo: chrome.tabs.TabChangeInfo,
+    tab: chrome.tabs.Tab
+  ) => {
     if (changeInfo.status === 'complete' && tab.url) {
       if (!tabTimeData[tabId]) {
         // 初始化新的标签页数据
@@ -112,7 +152,7 @@ export default defineBackground(() => {
   });
 
   // 监听窗口最小化事件
-  chrome.windows.onBoundsChanged.addListener((window) => {
+  chrome.windows.onBoundsChanged.addListener((window: chrome.windows.Window) => {
     if (window && typeof window.id === 'number') {
       chrome.windows.get(window.id, (win) => {
         if (win?.state === 'minimized') {
@@ -130,7 +170,11 @@ export default defineBackground(() => {
   });
 
   // 监听消息事件，返回时间数据
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((
+    message: RuntimeMessage,
+    sender: RuntimeSender,
+    sendResponse: (response?: any) => void
+  ) => {
     if (message.action === 'getTabTimeData') {
       sendResponse(tabTimeData);
     }
@@ -199,7 +243,7 @@ let blacklist: string[] = [];
 let isFocusModeActive = false;
 let focusDuration: number | null = null;
 let warningWindowId: number | null = null;
-let focusTimer: number | null = null;
+let focusTimer: ReturnType<typeof setTimeout> | null = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Received message:', message);
@@ -216,9 +260,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (focusTimer) {
       clearTimeout(focusTimer);
     }
-    focusTimer = setTimeout(() => {
-      endFocusMode();
-    }, focusDuration * 60 * 1000);
+    if (focusDuration) {
+      focusTimer = setTimeout(() => {
+        endFocusMode();
+      }, focusDuration * 60 * 1000);
+    }
   } else if (message.action === 'endFocusMode') {
     endFocusMode();
   }
@@ -275,7 +321,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           width: 400,
           height: 200
         }, (window) => {
-          if (window) {
+          if (window && window.id !== undefined) {
             warningWindowId = window.id;
             // 设置定时器，5秒后自动关闭警告窗口
             setTimeout(() => {
@@ -299,7 +345,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 // 监听窗口关闭事件
-chrome.windows.onRemoved.addListener((windowId) => {
+chrome.windows.onRemoved.addListener((windowId: number) => {
   if (windowId === warningWindowId) {
     warningWindowId = null;
   }
