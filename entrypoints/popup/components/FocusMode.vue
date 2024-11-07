@@ -1,9 +1,10 @@
 <template>
-  <div>
+  <el-container class="focus-container">
+    <el-main>
     <h2>专注模式</h2>
 
     <!-- 黑名单输入 -->
-    <el-form :model="form">
+    <el-form>
       <el-form-item label="添加黑名单域名">
         <el-input v-model="newDomain" placeholder="输入域名"></el-input>
         <el-button @click="addDomainToBlacklist" type="primary">添加</el-button>
@@ -64,7 +65,8 @@
     >
       <el-button type="primary" @click="showViolationWarning = false">确定</el-button>
     </el-message-box>
-  </div>
+  </el-main>
+  </el-container>
 </template>
 
  <script lang="ts">
@@ -259,7 +261,7 @@
     loadData();
     
     // 添加消息监听器
-    chrome.runtime.onMessage.addListener((message) => {
+    chrome.runtime.onMessage.addListener((message: { action: string }) => {
       if (message.action === 'focusModeEnded') {
         endFocusMode();
       }

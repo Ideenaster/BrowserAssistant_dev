@@ -65,7 +65,7 @@ onMounted(() => {
     height: 100%;
 }
 
-/* .el-main {
+.el-main {
     padding: 5px;
     height: 100%;
     overflow: hidden;
@@ -73,5 +73,5 @@ onMounted(() => {
 
 :deep(.el-main > div) {
     height: 100%;
-} */
+} 
 </style>
